@@ -1,0 +1,53 @@
+services:
+  java:
+    build:
+      context: .
+      dockerfile: docker/java/Dockerfile
+    ports:
+      - "8080:8080"
+      - "5005:5005" # Debug用
+    volumes:
+      - ./src/backend/myapp:/app
+      - maven-repo:/root/.m2
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres_user
+      - SPRING_DATASOURCE_PASSWORD=postgres_password
+      - SPRING_DEVTOOLS_REMOTE_SECRET=mysecret
+    working_dir: /app
+    # command: mvn spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    depends_on:
+      - db
+
+  next:
+    build:
+      context: ./src/frontend
+      dockerfile: ../../docker/next/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://java:8080
+      - NODE_ENV=development
+    command: npm run dev
+    depends_on:
+      - java
+
+  db:
+    image: postgres:14-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres_user
+      - POSTGRES_PASSWORD=postgres_password
+
+volumes:
+  postgres_data:
+  maven-repo:
